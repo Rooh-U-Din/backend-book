@@ -1,0 +1,56 @@
+{
+  "collection_name": "book-embeddings",
+  "description": "Vector embeddings for Physical AI & Humanoid Robotics book chapters",
+  "vector_config": {
+    "size": 768,
+    "distance": "Cosine",
+    "on_disk": false,
+    "note": "Using Gemini embedding-001 model (768 dimensions)"
+  },
+  "optimizers_config": {
+    "default_segment_number": 2,
+    "indexing_threshold": 20000
+  },
+  "payload_schema": {
+    "chapter_id": {
+      "type": "keyword",
+      "description": "Unique identifier for the chapter (e.g., 'ros2-fundamentals', 'gazebo-intro')"
+    },
+    "chapter_title": {
+      "type": "text",
+      "description": "Human-readable chapter title"
+    },
+    "section_title": {
+      "type": "text",
+      "description": "Section or subsection title within the chapter"
+    },
+    "url_path": {
+      "type": "keyword",
+      "description": "Relative URL path to the chapter section (e.g., '/docs/modules/ros2/fundamentals#topics')"
+    },
+    "chunk_text": {
+      "type": "text",
+      "description": "The actual text content of the chunk (500-1000 tokens)"
+    },
+    "chunk_index": {
+      "type": "integer",
+      "description": "Sequential index of chunk within the chapter"
+    },
+    "token_count": {
+      "type": "integer",
+      "description": "Number of tokens in the chunk"
+    },
+    "created_at": {
+      "type": "keyword",
+      "description": "ISO 8601 timestamp when the embedding was created"
+    }
+  },
+  "hnsw_config": {
+    "m": 16,
+    "ef_construct": 100,
+    "full_scan_threshold": 10000
+  },
+  "quantization_config": null,
+  "replication_factor": 1,
+  "write_consistency_factor": 1
+}
