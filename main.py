@@ -21,7 +21,7 @@ load_dotenv()
 
 # Rate limiting storage (in-memory - use Redis for production)
 rate_limit_storage: Dict[str, list] = defaultdict(list)
-RATE_LIMIT_QUERIES = 10  # queries per minute
+RATE_LIMIT_QUERIES = 100  # queries per minute (increased for development)
 RATE_LIMIT_WINDOW = 60  # seconds
 
 app = FastAPI(
