@@ -25,9 +25,10 @@ class TranslationService:
     """Service for translating chapter content with caching"""
 
     def __init__(self):
-        self.api_key = os.getenv("GEMINI_API_KEY")
+        # Use separate API key for translation (falls back to GEMINI_API_KEY if not set)
+        self.api_key = os.getenv("TRANSLATION_API_KEY") or os.getenv("GEMINI_API_KEY")
         if not self.api_key:
-            raise ValueError("GEMINI_API_KEY environment variable not set")
+            raise ValueError("TRANSLATION_API_KEY or GEMINI_API_KEY environment variable not set")
 
         genai.configure(api_key=self.api_key)
         self.model = genai.GenerativeModel('gemini-2.0-flash-lite')
