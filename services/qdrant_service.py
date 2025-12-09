@@ -1,5 +1,5 @@
 """
-Qdrant client wrapper for vector search operations
+Qdrant client wrapper for vector search operations (Cloud-compatible)
 """
 
 from qdrant_client import QdrantClient
@@ -8,7 +8,7 @@ from typing import List, Optional
 import os
 import uuid
 
-import os
+# Disable local Qdrant usage (important for cloud deployments like Railway)
 os.environ["QDRANT_DISABLE_LOCAL"] = "true"
 
 
@@ -23,7 +23,7 @@ class QdrantService:
         if not self.url or not self.api_key:
             raise ValueError("QDRANT_URL and QDRANT_API_KEY must be set")
 
-        # Initialize client
+        # Initialize remote Qdrant client
         self.client = QdrantClient(
             url=self.url,
             api_key=self.api_key,
@@ -52,12 +52,7 @@ class QdrantService:
             raise
 
     def upsert_chunks(self, chunks: List[dict]):
-        """
-        Upsert book chunks into Qdrant
-
-        Args:
-            chunks: List of dicts with 'id', 'vector', 'payload' keys
-        """
+        """Upsert book chunks into Qdrant"""
         points = [
             PointStruct(
                 id=chunk.get("id", str(uuid.uuid4())),
@@ -78,17 +73,7 @@ class QdrantService:
         limit: int = 5,
         chapter_filter: Optional[str] = None
     ) -> List[dict]:
-        """
-        Search for similar chunks
-
-        Args:
-            query_vector: 1536-dimensional query embedding
-            limit: Number of results to return
-            chapter_filter: Optional chapter_id to filter results
-
-        Returns:
-            List of search results with score and payload
-        """
+        """Search for similar chunks"""
         query_filter = None
         if chapter_filter:
             query_filter = Filter(
