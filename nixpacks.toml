@@ -1,0 +1,11 @@
+# Force Python provider
+providers = ["python"]
+
+[phases.setup]
+nixPkgs = ["python311Full"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[start]
+cmd = "cd src && python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"

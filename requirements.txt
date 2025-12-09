@@ -13,8 +13,11 @@ asyncpg>=0.29.0
 # Database - Vector Store
 qdrant-client>=1.7.3
 
-# Google Gemini API
+# Google Gemini API (for chatbot)
 google-generativeai>=0.3.0
+
+# Google Translate (for translation - free, no API key needed)
+deep-translator>=1.11.4
 
 # HTTP client
 httpx>=0.26.0
@@ -24,6 +27,10 @@ python-dotenv>=1.0.0
 
 # CORS middleware
 python-multipart>=0.0.6
+
+# Authentication
+bcrypt>=4.0.0
+pyjwt>=2.8.0
 
 # Testing (optional, for development)
 pytest>=7.4.4
