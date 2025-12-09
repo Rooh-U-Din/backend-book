@@ -8,6 +8,9 @@ from typing import List, Optional
 import os
 import uuid
 
+import os
+os.environ["QDRANT_DISABLE_LOCAL"] = "true"
+
 
 class QdrantService:
     """Manages Qdrant vector database operations"""
