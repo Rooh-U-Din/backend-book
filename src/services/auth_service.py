@@ -5,7 +5,8 @@ Authentication service for JWT handling and user management
 import os
 import bcrypt
 import jwt
-from datetime import datetime, timedelta
+import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 from fastapi import HTTPException, Depends, status
@@ -76,15 +77,22 @@ class AuthService:
                 detail="Email already registered"
             )
 
-        # Create user
+        # Create user with verification token (FR-026)
         password_hash = self.hash_password(request.password)
+        verification_token = secrets.token_urlsafe(32)
         user = User(
             email=request.email,
             name=request.name,
-            password_hash=password_hash
+            password_hash=password_hash,
+            email_verified=False,
+            verification_token=verification_token,
+            verification_expires=datetime.now(timezone.utc) + timedelta(hours=24)
         )
         db.add(user)
         db.flush()
+
+        # TODO: Send verification email via SMTP
+        # For development, the token is available in the database
 
         # Create empty profile
         profile = UserProfile(user_id=user.id)

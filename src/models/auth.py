@@ -27,6 +27,17 @@ class SignInRequest(BaseModel):
     password: str
 
 
+class VerifyEmailRequest(BaseModel):
+    """Request to verify email with token (FR-026)"""
+    token: str
+
+
+class VerifyEmailResponse(BaseModel):
+    """Response after email verification"""
+    message: str
+    email_verified: bool
+
+
 class AuthResponse(BaseModel):
     user_id: str
     email: str
@@ -39,7 +50,18 @@ class UserResponse(BaseModel):
     id: str
     email: str
     name: Optional[str]
+    email_verified: bool = False  # FR-026: Email verification status
     created_at: datetime
+
+
+class SessionInfo(BaseModel):
+    """Information about an active session (FR-021)"""
+    id: str
+    user_agent: Optional[str] = None
+    ip_address: Optional[str] = None
+    created_at: datetime
+    expires_at: datetime
+    is_current: bool = False
 
 
 # ============ PROFILE REQUEST/RESPONSE MODELS ============

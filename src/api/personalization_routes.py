@@ -1,5 +1,8 @@
 """
 Content Personalization API routes
+
+Note: All personalization endpoints require email verification (FR-026).
+Users must verify their email before accessing personalized content.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -18,10 +21,22 @@ from services.database_service import get_db
 router = APIRouter(prefix="/api/personalize", tags=["Personalization"])
 
 
+def require_verified_email_user(current_user: User = Depends(get_current_user)) -> User:
+    """
+    Dependency that requires email verification for personalization access (FR-026).
+    """
+    if not current_user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email verification required for personalization features"
+        )
+    return current_user
+
+
 @router.post("", response_model=PersonalizeResponse)
 async def personalize_content(
     request: PersonalizeRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_verified_email_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -29,6 +44,8 @@ async def personalize_content(
 
     This endpoint takes original chapter content and returns a personalized
     version adapted to the user's expertise level and learning preferences.
+
+    Requires email verification (FR-026).
     """
     personalization_service = get_personalization_service()
 
@@ -50,7 +67,7 @@ async def personalize_content(
 @router.get("/status/{chapter_id}", response_model=PersonalizationStatus)
 async def get_personalization_status(
     chapter_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_verified_email_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -58,6 +75,8 @@ async def get_personalization_status(
 
     Returns whether cached personalized content is available for the user's
     current profile.
+
+    Requires email verification (FR-026).
     """
     personalization_service = get_personalization_service()
 
@@ -73,7 +92,7 @@ async def get_personalization_status(
 @router.delete("/cache/{chapter_id}")
 async def clear_personalization_cache(
     chapter_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_verified_email_user),
     db: Session = Depends(get_db)
 ):
     """
