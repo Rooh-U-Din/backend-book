@@ -85,13 +85,21 @@ class SkillInvocation(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'))
     skill_id = Column(String(50), nullable=False, index=True)
+    trace_id = Column(UUID(as_uuid=True), unique=True, index=True)
     input_text = Column(Text)
     output_text = Column(Text)
+    status = Column(String(20), default='success')
     latency_ms = Column(Integer)
+    context = Column(JSONB)
+    error_message = Column(Text)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, index=True)
 
+    __table_args__ = (
+        Index('idx_skill_invocations_user_skill', 'user_id', 'skill_id', created_at.desc()),
+    )
+
     def __repr__(self):
-        return f"<SkillInvocation(skill={self.skill_id}, user={self.user_id})>"
+        return f"<SkillInvocation(skill={self.skill_id}, trace={self.trace_id}, status={self.status})>"
 
 
 # ============ EXISTING MODELS ============
