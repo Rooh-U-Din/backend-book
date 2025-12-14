@@ -3,10 +3,17 @@ Database connection manager for Neon Postgres
 """
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
 from contextlib import asynccontextmanager
 import os
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Generator
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Ensure .env is loaded from backend/.env
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
 
 
 class DatabaseService:
@@ -81,3 +88,57 @@ def get_database_service() -> DatabaseService:
     if db_service is None:
         db_service = DatabaseService()
     return db_service
+
+
+# Sync database session for auth (FastAPI dependency)
+_sync_engine = None
+_sync_session_factory = None
+
+
+def _get_sync_engine():
+    """Get or create sync engine for auth operations"""
+    global _sync_engine
+    if _sync_engine is None:
+        database_url = os.getenv("NEON_DATABASE_URL")
+        if not database_url:
+            raise ValueError("NEON_DATABASE_URL environment variable not set")
+        # Use sync driver (psycopg2)
+        if database_url.startswith("postgresql+asyncpg://"):
+            database_url = database_url.replace("postgresql+asyncpg://", "postgresql://")
+        _sync_engine = create_engine(
+            database_url,
+            pool_size=5,
+            max_overflow=10,
+            pool_pre_ping=True
+        )
+    return _sync_engine
+
+
+def _get_sync_session_factory():
+    """Get or create sync session factory"""
+    global _sync_session_factory
+    if _sync_session_factory is None:
+        _sync_session_factory = sessionmaker(
+            bind=_get_sync_engine(),
+            autocommit=False,
+            autoflush=False
+        )
+    return _sync_session_factory
+
+
+def get_db() -> Generator[Session, None, None]:
+    """
+    FastAPI dependency for sync database sessions.
+    Used for auth operations that require synchronous DB access.
+
+    Usage in routes:
+        @router.post("/endpoint")
+        async def endpoint(db: Session = Depends(get_db)):
+            ...
+    """
+    SessionLocal = _get_sync_session_factory()
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

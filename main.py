@@ -174,10 +174,18 @@ async def test_endpoint():
 from api.query_routes import router as query_router
 from api.health_routes import router as health_router
 from api.translation_routes import router as translation_router
+from api.auth_routes import router as auth_router
+from api.profile_routes import router as profile_router
+from api.personalization_routes import router as personalization_router
+from api.skills_routes import router as skills_router
 
 app.include_router(query_router)
 app.include_router(health_router)
 app.include_router(translation_router)
+app.include_router(auth_router)
+app.include_router(profile_router)
+app.include_router(personalization_router)
+app.include_router(skills_router)
 
 
 if __name__ == "__main__":

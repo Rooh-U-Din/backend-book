@@ -2,15 +2,17 @@
 Query API Routes for RAG Chatbot
 
 Handles query requests for full-book and selection modes.
+All endpoints require BetterAuth authentication.
 
 Author: Physical AI & Humanoid Robotics Course
 License: MIT
 """
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from models.query import QueryRequest, SelectionQueryRequest, QueryResponse, Citation
 from services.retrieval_service import get_retrieval_service
 from services.response_service import get_response_service
+from services.session_validator import get_session
 import time
 from datetime import datetime
 
@@ -22,15 +24,23 @@ response_service = get_response_service()
 
 
 @router.post("/query", response_model=QueryResponse)
-async def query_chatbot(request_data: QueryRequest, request: Request):
+async def query_chatbot(
+    request_data: QueryRequest,
+    request: Request,
+    session: dict = Depends(get_session)
+):
     """
-    Query chatbot in full-book mode
+    Query chatbot in full-book mode (requires authentication)
 
     Args:
         request_data: QueryRequest with query and session_id
+        session: BetterAuth session (injected via dependency)
 
     Returns:
         QueryResponse with answer, citations, and metadata
+
+    Raises:
+        401 Unauthorized: If not authenticated
     """
     start_time = time.time()
 
@@ -85,15 +95,23 @@ async def query_chatbot(request_data: QueryRequest, request: Request):
 
 
 @router.post("/query-selection", response_model=QueryResponse)
-async def query_selection(request_data: SelectionQueryRequest, request: Request):
+async def query_selection(
+    request_data: SelectionQueryRequest,
+    request: Request,
+    session: dict = Depends(get_session)
+):
     """
-    Query chatbot in selection mode
+    Query chatbot in selection mode (requires authentication)
 
     Args:
         request_data: SelectionQueryRequest with selected_text, query, chapter_context
+        session: BetterAuth session (injected via dependency)
 
     Returns:
         QueryResponse with answer constrained to selection
+
+    Raises:
+        401 Unauthorized: If not authenticated
     """
     start_time = time.time()
 
