@@ -23,7 +23,8 @@ class PersonalizationService:
             raise ValueError("GEMINI_API_KEY environment variable not set")
 
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash-lite')
+        chat_model_name = os.getenv("CHAT_MODEL", "gemini-2.5-flash")
+        self.model = genai.GenerativeModel(chat_model_name)
 
         # Cache duration (7 days)
         self.cache_duration = timedelta(days=7)

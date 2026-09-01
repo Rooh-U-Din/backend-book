@@ -5,7 +5,14 @@ Google Gemini API client wrapper for embeddings and completions
 import google.generativeai as genai
 import os
 from typing import List, Optional
+from pathlib import Path
+from dotenv import load_dotenv
 import time
+
+# Ensure .env is loaded from root or backend directory
+load_dotenv()
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 
 class GeminiService:
@@ -20,8 +27,10 @@ class GeminiService:
         genai.configure(api_key=self.api_key)
 
         # Initialize models
-        self.chat_model = genai.GenerativeModel('gemini-2.0-flash-lite')
-        self.embedding_model = 'models/text-embedding-004'
+        chat_model_name = os.getenv("CHAT_MODEL", "gemini-2.5-flash")
+        self.chat_model = genai.GenerativeModel(chat_model_name)
+        self.embedding_model = os.getenv("EMBEDDING_MODEL", "models/gemini-embedding-001")
+        self.embedding_dimension = int(os.getenv("EMBEDDING_DIMENSION", "768"))
 
     def generate_embedding(self, text: str) -> List[float]:
         """
@@ -31,13 +40,14 @@ class GeminiService:
             text: Text to embed
 
         Returns:
-            768-dimensional embedding vector
+            Embedding vector matching embedding_dimension
         """
         try:
             result = genai.embed_content(
                 model=self.embedding_model,
                 content=text,
-                task_type="retrieval_document"
+                task_type="retrieval_document",
+                output_dimensionality=self.embedding_dimension
             )
             return result['embedding']
         except Exception as e:
@@ -52,13 +62,14 @@ class GeminiService:
             query: Search query text
 
         Returns:
-            768-dimensional embedding vector
+            Embedding vector matching embedding_dimension
         """
         try:
             result = genai.embed_content(
                 model=self.embedding_model,
                 content=query,
-                task_type="retrieval_query"
+                task_type="retrieval_query",
+                output_dimensionality=self.embedding_dimension
             )
             return result['embedding']
         except Exception as e:
@@ -128,7 +139,8 @@ Please provide a clear answer and mention which chapters or sections you're refe
             genai.embed_content(
                 model=self.embedding_model,
                 content="test",
-                task_type="retrieval_query"
+                task_type="retrieval_query",
+                output_dimensionality=self.embedding_dimension
             )
             return True
         except Exception as e:

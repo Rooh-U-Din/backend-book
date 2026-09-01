@@ -31,7 +31,8 @@ class TranslationService:
             raise ValueError("TRANSLATION_API_KEY or GEMINI_API_KEY environment variable not set")
 
         genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash-lite')
+        chat_model_name = os.getenv("CHAT_MODEL", "gemini-2.5-flash")
+        self.model = genai.GenerativeModel(chat_model_name)
 
         # In-memory cache (use Redis/DB in production)
         self._translation_cache: Dict[str, ChapterTranslation] = {}

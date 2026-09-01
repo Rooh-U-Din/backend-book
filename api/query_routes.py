@@ -86,11 +86,12 @@ async def query_chatbot(
     except HTTPException:
         raise
     except Exception as e:
-        # Log error (in production, use proper logging)
+        import traceback
+        traceback.print_exc()
         print(f"Error processing query: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Internal server error: {str(e)}"
+            detail="Failed to process query. Please try again later."
         )
 
 
@@ -160,8 +161,10 @@ async def query_selection(
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"Error processing selection query: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Internal server error: {str(e)}"
+            detail="Failed to process selection query. Please try again later."
         )

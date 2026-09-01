@@ -30,8 +30,10 @@ class QdrantService:
             timeout=30
         )
 
-    def create_collection(self, vector_size: int = 1536):
+    def create_collection(self, vector_size: Optional[int] = None):
         """Create the book embeddings collection if it doesn't exist"""
+        if vector_size is None:
+            vector_size = int(os.getenv("EMBEDDING_DIMENSION", "768"))
         try:
             collections = self.client.get_collections().collections
             collection_names = [col.name for col in collections]

@@ -42,7 +42,8 @@ class BookEmbeddingGenerator:
             raise ValueError("GEMINI_API_KEY not set in environment")
 
         genai.configure(api_key=api_key)
-        self.embedding_model = 'models/text-embedding-004'
+        self.embedding_model = os.getenv("EMBEDDING_MODEL", "models/gemini-embedding-001")
+        self.embedding_dimension = int(os.getenv("EMBEDDING_DIMENSION", "768"))
 
         # Initialize Qdrant client
         qdrant_url = os.getenv("QDRANT_URL")
@@ -53,7 +54,7 @@ class BookEmbeddingGenerator:
 
         self.qdrant_client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
 
-        # Create collection if not exists (768 dimensions for Gemini embeddings)
+        # Create collection if not exists
         self._ensure_collection()
 
     def _ensure_collection(self):
@@ -67,7 +68,7 @@ class BookEmbeddingGenerator:
                 self.qdrant_client.create_collection(
                     collection_name=self.collection_name,
                     vectors_config=VectorParams(
-                        size=768,  # Gemini embedding-001 dimensions
+                        size=self.embedding_dimension,
                         distance=Distance.COSINE
                     )
                 )
@@ -208,7 +209,8 @@ class BookEmbeddingGenerator:
             result = genai.embed_content(
                 model=self.embedding_model,
                 content=text,
-                task_type="retrieval_document"
+                task_type="retrieval_document",
+                output_dimensionality=self.embedding_dimension
             )
             return result['embedding']
         except Exception as e:
