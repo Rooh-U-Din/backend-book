@@ -20,11 +20,19 @@ class QdrantService:
         if not self.url or not self.api_key:
             raise ValueError("QDRANT_URL and QDRANT_API_KEY must be set")
 
-        # Initialize client
-        self.client = QdrantClient(
+        self.client = self._create_client()
+
+    def _create_client(self) -> QdrantClient:
+        """Create Qdrant client with proper port and timeout settings"""
+        port_env = os.getenv("QDRANT_PORT")
+        port = int(port_env) if port_env else None
+
+        return QdrantClient(
             url=self.url,
+            port=port,
             api_key=self.api_key,
-            timeout=30
+            timeout=30,
+            prefer_grpc=False
         )
 
     def create_collection(self, vector_size: Optional[int] = None):
@@ -77,17 +85,9 @@ class QdrantService:
         limit: int = 5,
         chapter_filter: Optional[str] = None
     ) -> List[dict]:
-        """
-        Search for similar chunks
+        """Search for similar chunks with automatic retry on connection reset"""
+        import time
 
-        Args:
-            query_vector: 1536-dimensional query embedding
-            limit: Number of results to return
-            chapter_filter: Optional chapter_id to filter results
-
-        Returns:
-            List of search results with score and payload
-        """
         query_filter = None
         if chapter_filter:
             query_filter = Filter(
@@ -99,8 +99,11 @@ class QdrantService:
                 ]
             )
 
-        try:
-            if hasattr(self.client, "query_points"):
+        max_retries = 2
+        last_exception = None
+
+        for attempt in range(max_retries):
+            try:
                 response = self.client.query_points(
                     collection_name=self.collection_name,
                     query=query_vector,
@@ -109,25 +112,27 @@ class QdrantService:
                     with_payload=True
                 )
                 results = response.points
-            else:
-                results = self.client.search(
-                    collection_name=self.collection_name,
-                    query_vector=query_vector,
-                    limit=limit,
-                    query_filter=query_filter
-                )
 
-            return [
-                {
-                    "id": str(result.id),
-                    "score": result.score,
-                    "payload": result.payload
-                }
-                for result in results
-            ]
-        except Exception as e:
-            print(f"Error querying Qdrant collection '{self.collection_name}': {e}")
-            raise
+                return [
+                    {
+                        "id": str(result.id),
+                        "score": result.score,
+                        "payload": result.payload
+                    }
+                    for result in results
+                ]
+            except Exception as e:
+                last_exception = e
+                print(f"Qdrant query attempt {attempt + 1} failed on collection '{self.collection_name}': {e}")
+                if attempt < max_retries - 1:
+                    try:
+                        self.client.close()
+                    except Exception:
+                        pass
+                    self.client = self._create_client()
+                    time.sleep(0.5)
+
+        raise last_exception
 
     async def health_check(self) -> bool:
         """Check Qdrant connectivity"""
