@@ -87,21 +87,35 @@ class QdrantService:
                 ]
             )
 
-        results = self.client.search(
-            collection_name=self.collection_name,
-            query_vector=query_vector,
-            limit=limit,
-            query_filter=query_filter
-        )
+        try:
+            if hasattr(self.client, "query_points"):
+                response = self.client.query_points(
+                    collection_name=self.collection_name,
+                    query=query_vector,
+                    limit=limit,
+                    query_filter=query_filter,
+                    with_payload=True
+                )
+                results = response.points
+            else:
+                results = self.client.search(
+                    collection_name=self.collection_name,
+                    query_vector=query_vector,
+                    limit=limit,
+                    query_filter=query_filter
+                )
 
-        return [
-            {
-                "id": str(result.id),
-                "score": result.score,
-                "payload": result.payload
-            }
-            for result in results
-        ]
+            return [
+                {
+                    "id": str(result.id),
+                    "score": result.score,
+                    "payload": result.payload
+                }
+                for result in results
+            ]
+        except Exception as e:
+            print(f"Error querying Qdrant collection '{self.collection_name}': {e}")
+            raise
 
     async def health_check(self) -> bool:
         """Check Qdrant connectivity"""
