@@ -24,6 +24,10 @@ class QdrantService:
             raise ValueError("QDRANT_URL and QDRANT_API_KEY must be set")
 
         self.client = self._create_client()
+        try:
+            self.ensure_collection()
+        except Exception as e:
+            print(f"Notice: Deferred Qdrant collection check: {e}")
 
     def _create_client(self) -> QdrantClient:
         """Create Qdrant client with proper port and timeout settings"""
@@ -38,15 +42,19 @@ class QdrantService:
             prefer_grpc=False
         )
 
-    def create_collection(self, vector_size: Optional[int] = None):
-        """Create the book embeddings collection if it doesn't exist"""
+    def ensure_collection(self, vector_size: Optional[int] = None):
+        """Ensure the book embeddings collection exists, create if missing"""
         if vector_size is None:
             vector_size = int(os.getenv("EMBEDDING_DIMENSION", "768"))
         try:
-            collections = self.client.get_collections().collections
-            collection_names = [col.name for col in collections]
+            if hasattr(self.client, "collection_exists"):
+                exists = self.client.collection_exists(self.collection_name)
+            else:
+                collections = self.client.get_collections().collections
+                exists = any(col.name == self.collection_name for col in collections)
 
-            if self.collection_name not in collection_names:
+            if not exists:
+                print(f"Collection '{self.collection_name}' not found. Creating it now...")
                 self.client.create_collection(
                     collection_name=self.collection_name,
                     vectors_config=VectorParams(
@@ -54,12 +62,15 @@ class QdrantService:
                         distance=Distance.COSINE
                     )
                 )
-                print(f"Created collection: {self.collection_name}")
+                print(f"[OK] Created collection: {self.collection_name}")
             else:
-                print(f"Collection {self.collection_name} already exists")
+                print(f"[OK] Collection '{self.collection_name}' verified")
         except Exception as e:
-            print(f"Error creating collection: {e}")
-            raise
+            print(f"Warning: Could not verify/create collection '{self.collection_name}': {e}")
+
+    def create_collection(self, vector_size: Optional[int] = None):
+        """Create the book embeddings collection if it doesn't exist"""
+        self.ensure_collection(vector_size=vector_size)
 
     def upsert_chunks(self, chunks: List[dict]):
         """Upsert book chunks into Qdrant"""
@@ -83,7 +94,7 @@ class QdrantService:
         limit: int = 5,
         chapter_filter: Optional[str] = None
     ) -> List[dict]:
-        """Search for similar chunks with automatic retry on connection reset"""
+        """Search for similar chunks with automatic retry on connection reset or missing collection"""
         import time
 
         query_filter = None
@@ -121,6 +132,17 @@ class QdrantService:
                 ]
             except Exception as e:
                 last_exception = e
+                err_str = str(e).lower()
+
+                # Handle missing collection automatically
+                if "doesn't exist" in err_str or "not found" in err_str:
+                    print(f"Collection '{self.collection_name}' missing during query. Creating now...")
+                    try:
+                        self.ensure_collection()
+                        return []  # Return empty results for newly created empty collection
+                    except Exception as ce:
+                        print(f"Failed to auto-create collection: {ce}")
+
                 print(f"Qdrant query attempt {attempt + 1} failed on collection '{self.collection_name}': {e}")
                 if attempt < max_retries - 1:
                     try:

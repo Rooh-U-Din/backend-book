@@ -13,6 +13,7 @@ import os
 import sys
 import argparse
 import re
+import uuid
 from pathlib import Path
 from typing import List, Dict, Tuple
 import time
@@ -26,7 +27,10 @@ import google.generativeai as genai
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 
+# Ensure .env is loaded
 load_dotenv()
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 
 class BookEmbeddingGenerator:
@@ -52,7 +56,16 @@ class BookEmbeddingGenerator:
         if not qdrant_url or not qdrant_api_key:
             raise ValueError("QDRANT_URL and QDRANT_API_KEY must be set")
 
-        self.qdrant_client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        port_env = os.getenv("QDRANT_PORT")
+        port = int(port_env) if port_env else None
+
+        self.qdrant_client = QdrantClient(
+            url=qdrant_url,
+            port=port,
+            api_key=qdrant_api_key,
+            timeout=30,
+            prefer_grpc=False
+        )
 
         # Create collection if not exists
         self._ensure_collection()
@@ -72,9 +85,9 @@ class BookEmbeddingGenerator:
                         distance=Distance.COSINE
                     )
                 )
-                print("✓ Collection created")
+                print("[OK] Collection created")
             else:
-                print(f"✓ Collection '{self.collection_name}' already exists")
+                print(f"[OK] Collection '{self.collection_name}' already exists")
         except Exception as e:
             print(f"Error creating collection: {e}")
             raise
@@ -244,9 +257,10 @@ class BookEmbeddingGenerator:
             # Generate embedding
             embedding = self.generate_embedding(chunk['text'])
 
-            # Create Qdrant point
+            # Create Qdrant point with deterministic UUID
+            point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{chapter_id}-{i}"))
             point = PointStruct(
-                id=f"{chapter_id}-{i}",
+                id=point_id,
                 vector=embedding,
                 payload={
                     **chunk['metadata'],
@@ -267,7 +281,7 @@ class BookEmbeddingGenerator:
             points=points
         )
 
-        print(f"✓ Completed: {file_path.name} ({len(chunks)} chunks)")
+        print(f"[OK] Completed: {file_path.name} ({len(chunks)} chunks)")
         return len(chunks)
 
     def process_directory(self, batch_size: int = 100) -> Dict:
@@ -290,7 +304,7 @@ class BookEmbeddingGenerator:
                 total_chunks += chunks
                 processed_files += 1
             except Exception as e:
-                print(f"✗ Error processing {file_path}: {e}")
+                print(f"[ERROR] Error processing {file_path}: {e}")
 
         return {
             "total_files": len(all_files),
@@ -327,9 +341,23 @@ def main():
     print("Book Embedding Generation Script")
     print("=" * 60)
 
+    # Auto-resolve docs directory
+    docs_path = Path(args.docs_dir)
+    if not docs_path.exists():
+        candidates = [
+            Path(__file__).resolve().parent.parent.parent / "docs",
+            Path(__file__).resolve().parent.parent / "docs",
+            Path("docs"),
+            Path("../docs")
+        ]
+        for c in candidates:
+            if c.exists():
+                docs_path = c
+                break
+
     try:
         generator = BookEmbeddingGenerator(
-            docs_dir=args.docs_dir,
+            docs_dir=str(docs_path),
             collection_name=args.collection_name
         )
 
@@ -343,10 +371,10 @@ def main():
         print(f"Total chunks created:  {result['total_chunks']}")
         print(f"Collection:            {result['collection_name']}")
         print("=" * 60)
-        print("✓ Embedding generation complete!")
+        print("[OK] Embedding generation complete!")
 
     except Exception as e:
-        print(f"\n✗ Fatal error: {e}")
+        print(f"\n[ERROR] Fatal error: {e}")
         sys.exit(1)
 
 
