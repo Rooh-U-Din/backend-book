@@ -42,7 +42,7 @@ class BookEmbeddingGenerator:
             raise ValueError("GEMINI_API_KEY not set in environment")
 
         genai.configure(api_key=api_key)
-        self.embedding_model = 'models/embedding-001'
+        self.embedding_model = 'models/text-embedding-004'
 
         # Initialize Qdrant client
         qdrant_url = os.getenv("QDRANT_URL")

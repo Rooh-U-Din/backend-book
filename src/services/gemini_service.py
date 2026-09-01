@@ -21,7 +21,7 @@ class GeminiService:
 
         # Initialize models
         self.chat_model = genai.GenerativeModel('gemini-2.0-flash-lite')
-        self.embedding_model = 'models/embedding-001'
+        self.embedding_model = 'models/text-embedding-004'
 
     def generate_embedding(self, text: str) -> List[float]:
         """
