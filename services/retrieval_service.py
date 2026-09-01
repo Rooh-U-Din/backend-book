@@ -40,12 +40,34 @@ class RetrievalService:
         # Generate query embedding
         query_vector = self.gemini.generate_query_embedding(query)
 
+        # Safe diagnostic logging
+        print(f"[RAG DEBUG] Query: {query}")
+        print(f"[RAG DEBUG] Embedding model: {self.gemini.embedding_model}")
+        print(f"[RAG DEBUG] Query vector dimension: {len(query_vector)}")
+        print(f"[RAG DEBUG] Collection: {self.qdrant.collection_name}")
+
+        try:
+            col_info = self.qdrant.client.get_collection(self.qdrant.collection_name)
+            print(f"[RAG DEBUG] Collection vector dimension: {col_info.config.params.vectors.size}")
+            print(f"[RAG DEBUG] Collection point count: {col_info.points_count}")
+        except Exception as e:
+            print(f"[RAG DEBUG] Could not fetch collection metadata: {e}")
+
         # Search Qdrant
         results = self.qdrant.search(
             query_vector=query_vector,
             limit=top_k,
             chapter_filter=chapter_filter
         )
+
+        print(f"[RAG DEBUG] Retrieved results count: {len(results)}")
+        for i, res in enumerate(results[:3]):
+            payload = res.get('payload', {})
+            txt = payload.get('chunk_text', '')
+            preview = (txt[:100] + '...') if txt else 'N/A'
+            print(f"[RAG DEBUG] Result {i+1} score: {res.get('score', 0):.4f}")
+            print(f"[RAG DEBUG] Result {i+1} payload keys: {list(payload.keys())}")
+            print(f"[RAG DEBUG] Result {i+1} text preview: {preview}")
 
         # Convert to SearchResult objects
         search_results = []
