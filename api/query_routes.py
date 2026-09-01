@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, Request, Depends
 from models.query import QueryRequest, SelectionQueryRequest, QueryResponse, Citation
 from services.retrieval_service import get_retrieval_service
 from services.response_service import get_response_service
-from services.session_validator import get_session
+from services.session_validator import get_session_optional
 import time
 from datetime import datetime
 
@@ -27,7 +27,7 @@ response_service = get_response_service()
 async def query_chatbot(
     request_data: QueryRequest,
     request: Request,
-    session: dict = Depends(get_session)
+    session: dict = Depends(get_session_optional)
 ):
     """
     Query chatbot in full-book mode (requires authentication)
@@ -98,7 +98,7 @@ async def query_chatbot(
 async def query_selection(
     request_data: SelectionQueryRequest,
     request: Request,
-    session: dict = Depends(get_session)
+    session: dict = Depends(get_session_optional)
 ):
     """
     Query chatbot in selection mode (requires authentication)
