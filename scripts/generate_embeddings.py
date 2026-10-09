@@ -46,8 +46,17 @@ class BookEmbeddingGenerator:
             raise ValueError("GEMINI_API_KEY not set in environment")
 
         genai.configure(api_key=api_key)
-        self.embedding_model = os.getenv("EMBEDDING_MODEL", "models/gemini-embedding-001")
+        raw_model = os.getenv("EMBEDDING_MODEL", "models/gemini-embedding-2")
+        # Migrate retired models
+        retired_map = {
+            "models/text-embedding-004": "models/gemini-embedding-2",
+            "text-embedding-004": "models/gemini-embedding-2",
+            "models/embedding-001": "models/gemini-embedding-2",
+        }
+        clean_model = raw_model if raw_model.startswith("models/") else f"models/{raw_model}"
+        self.embedding_model = retired_map.get(clean_model, clean_model)
         self.embedding_dimension = int(os.getenv("EMBEDDING_DIMENSION", "768"))
+        print(f"[EmbeddingGenerator] Using model: {self.embedding_model} (dimension: {self.embedding_dimension})")
 
         # Initialize Qdrant client
         qdrant_url = os.getenv("QDRANT_URL")

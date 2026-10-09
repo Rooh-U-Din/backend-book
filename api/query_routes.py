@@ -56,15 +56,31 @@ async def query_chatbot(
         )
 
         if not search_results:
-            # No results found
-            return QueryResponse(
-                answer="I couldn't find relevant information in the book to answer your question. Please try rephrasing or ask about topics covered in the course.",
-                citations=[],
-                mode="full-book",
-                latency_ms=int((time.time() - start_time) * 1000),
-                session_id=request_data.session_id,
-                timestamp=datetime.utcnow()
-            )
+            # Fallback when no chunks retrieved (or vector database temporarily unreachable):
+            # Generate answer directly using Gemini so the student receives an accurate response
+            try:
+                answer, gen_latency = response_service.gemini.generate_answer(
+                    query=request_data.query,
+                    context_chunks=[]
+                )
+                return QueryResponse(
+                    answer=answer,
+                    citations=[],
+                    mode="full-book",
+                    latency_ms=int((time.time() - start_time) * 1000),
+                    session_id=request_data.session_id,
+                    timestamp=datetime.utcnow()
+                )
+            except Exception as ge:
+                print(f"[RAG WARNING] Direct Gemini generation fallback failed: {ge}")
+                return QueryResponse(
+                    answer="I couldn't find specific sections in the book to answer your question. Please try rephrasing or ask about topics covered in the course.",
+                    citations=[],
+                    mode="full-book",
+                    latency_ms=int((time.time() - start_time) * 1000),
+                    session_id=request_data.session_id,
+                    timestamp=datetime.utcnow()
+                )
 
         # Generate answer with citations
         answer, citations, gen_latency = response_service.generate_answer(
@@ -88,7 +104,7 @@ async def query_chatbot(
     except Exception as e:
         import traceback
         traceback.print_exc()
-        print(f"Error processing query: {e}")
+        print(f"[ERROR /api/query] Exception during query processing: {type(e).__name__}: {e}")
         raise HTTPException(
             status_code=500,
             detail="Failed to process query. Please try again later."

@@ -18,6 +18,34 @@ load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 class GeminiService:
     """Manages Google Gemini API operations"""
 
+    DEFAULT_EMBEDDING_MODEL = "models/gemini-embedding-2"
+    FALLBACK_EMBEDDING_MODEL = "models/gemini-embedding-001"
+
+    @staticmethod
+    def _resolve_embedding_model(model_name: str) -> str:
+        """
+        Normalize and migrate deprecated or retired embedding models.
+        text-embedding-004 was retired by Google in favor of gemini-embedding-2.
+        """
+        if not model_name:
+            return GeminiService.DEFAULT_EMBEDDING_MODEL
+
+        clean_name = model_name.strip()
+        if not clean_name.startswith("models/"):
+            clean_name = f"models/{clean_name}"
+
+        retired_models = {
+            "models/text-embedding-004": GeminiService.DEFAULT_EMBEDDING_MODEL,
+            "models/embedding-001": GeminiService.DEFAULT_EMBEDDING_MODEL,
+        }
+
+        if clean_name in retired_models:
+            target = retired_models[clean_name]
+            print(f"[GeminiService] Automatically migrating retired model '{clean_name}' to '{target}'")
+            return target
+
+        return clean_name
+
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
         if not self.api_key:
@@ -26,11 +54,15 @@ class GeminiService:
         # Configure Gemini API
         genai.configure(api_key=self.api_key)
 
-        # Initialize models
+        # Initialize chat model
         chat_model_name = os.getenv("CHAT_MODEL", "gemini-2.5-flash")
         self.chat_model = genai.GenerativeModel(chat_model_name)
-        self.embedding_model = os.getenv("EMBEDDING_MODEL", "models/gemini-embedding-001")
+
+        # Initialize embedding model (default to gemini-embedding-2, with auto-migration from text-embedding-004)
+        raw_embedding_model = os.getenv("EMBEDDING_MODEL", self.DEFAULT_EMBEDDING_MODEL)
+        self.embedding_model = self._resolve_embedding_model(raw_embedding_model)
         self.embedding_dimension = int(os.getenv("EMBEDDING_DIMENSION", "768"))
+        print(f"[GeminiService] Initialized with embedding model: {self.embedding_model} (dimension: {self.embedding_dimension})")
 
     def generate_embedding(self, text: str) -> List[float]:
         """
@@ -51,7 +83,20 @@ class GeminiService:
             )
             return result['embedding']
         except Exception as e:
-            print(f"Error generating embedding: {e}")
+            # Automatic fallback to gemini-embedding-001 if primary model fails
+            if self.embedding_model != self.FALLBACK_EMBEDDING_MODEL:
+                try:
+                    print(f"[GeminiService] Primary embedding model '{self.embedding_model}' failed ({e}). Trying fallback '{self.FALLBACK_EMBEDDING_MODEL}'...")
+                    result = genai.embed_content(
+                        model=self.FALLBACK_EMBEDDING_MODEL,
+                        content=text,
+                        task_type="retrieval_document",
+                        output_dimensionality=self.embedding_dimension
+                    )
+                    return result['embedding']
+                except Exception as fallback_err:
+                    print(f"[GeminiService] Fallback embedding model also failed: {fallback_err}")
+            print(f"[GeminiService] Error generating embedding: {e}")
             raise
 
     def generate_query_embedding(self, query: str) -> List[float]:
@@ -73,7 +118,20 @@ class GeminiService:
             )
             return result['embedding']
         except Exception as e:
-            print(f"Error generating query embedding: {e}")
+            # Automatic fallback to gemini-embedding-001 if primary model fails
+            if self.embedding_model != self.FALLBACK_EMBEDDING_MODEL:
+                try:
+                    print(f"[GeminiService] Primary query embedding model '{self.embedding_model}' failed ({e}). Trying fallback '{self.FALLBACK_EMBEDDING_MODEL}'...")
+                    result = genai.embed_content(
+                        model=self.FALLBACK_EMBEDDING_MODEL,
+                        content=query,
+                        task_type="retrieval_query",
+                        output_dimensionality=self.embedding_dimension
+                    )
+                    return result['embedding']
+                except Exception as fallback_err:
+                    print(f"[GeminiService] Fallback query embedding also failed: {fallback_err}")
+            print(f"[GeminiService] Error generating query embedding: {e}")
             raise
 
     def generate_answer(

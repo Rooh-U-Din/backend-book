@@ -53,12 +53,18 @@ class RetrievalService:
         except Exception as e:
             print(f"[RAG DEBUG] Could not fetch collection metadata: {e}")
 
-        # Search Qdrant
-        results = self.qdrant.search(
-            query_vector=query_vector,
-            limit=top_k,
-            chapter_filter=chapter_filter
-        )
+        # Search Qdrant with error resilience
+        try:
+            results = self.qdrant.search(
+                query_vector=query_vector,
+                limit=top_k,
+                chapter_filter=chapter_filter
+            )
+        except Exception as qe:
+            print(f"[RAG WARNING] Qdrant vector search failed ({qe}). Proceeding without retrieved chunks.")
+            import traceback
+            traceback.print_exc()
+            return []
 
         print(f"[RAG DEBUG] Retrieved results count: {len(results)}")
         for i, res in enumerate(results[:3]):

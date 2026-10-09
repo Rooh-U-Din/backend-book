@@ -18,7 +18,7 @@ class QdrantService:
     def __init__(self):
         self.url = os.getenv("QDRANT_URL")
         self.api_key = os.getenv("QDRANT_API_KEY")
-        self.collection_name = "book-embeddings"
+        self.collection_name = os.getenv("QDRANT_COLLECTION_NAME", "book-embeddings")
 
         if not self.url or not self.api_key:
             raise ValueError("QDRANT_URL and QDRANT_API_KEY must be set")
